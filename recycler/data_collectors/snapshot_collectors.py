@@ -5,6 +5,7 @@ from typing import Optional
 from gql import gql
 from web3 import Web3
 
+from recycler.constants import MSIG_VOTER
 from recycler.data_collectors.transports import make_gql_client
 
 SNAPSHOT_GQL_API_URL = "https://hub.snapshot.org/graphql"
@@ -96,3 +97,27 @@ def get_previous_snapshot_round(web3: Web3, space: Optional[str] = "gauges.auraf
                     gauge_proposal = proposal
                     break
         return gauge_proposal
+
+
+def get_votes_from_snapshot(snapshot: str) -> Optional[Dict]:
+    """
+    Takes in snapshot id and returns all votes for the current value of MSIG_VOTER constant
+    :param snapshot:  Snapshot id to query
+    """
+    client = make_gql_client(SNAPSHOT_GQL_API_URL)
+    limit = 100
+    offset = 0
+    votes = None
+    while True:
+        result = client.execute(GET_PROPOSAL_VOTES_Q(
+            first=limit, skip=offset, snapshot_id=snapshot, voter=MSIG_VOTER, space="gauges.aurafinance.eth")
+        )
+        offset += limit
+        if not result or not result["votes"]:
+            break
+        votes = result['votes'][0]
+        if not votes:
+            continue
+        votes = votes['choice']
+
+    return votes
